@@ -3,5 +3,5 @@
 
 1. Apurva Umakant Gawande
 2. Gage Glovanni
-3. Gotham Kishore Mahadasu
+3. Gowtham Kishore Mahadasu
 4. Sravani Kallempudi
