@@ -16,8 +16,13 @@ def badRequest(e):
 
 # ---------------REPORT A GAME---------------
 
-@app.route("/reportgame/<string:username> <int:result> <int:guesses>", methods=["POST"])
-async def addScore(username, result, guesses):
+@app.route("/reportgame", methods=["POST"])
+async def addScore():
+    body = await request.get_json()
+    username = body.get("username").lower()
+    result = body.get("result")
+    guesses = body.get("guesses")
+
     if r.hexists(username, "total") == False:
         r.hmset(username, {"total":0, "count":0})
 
