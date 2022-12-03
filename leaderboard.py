@@ -34,7 +34,9 @@ async def addScore(username, result, guesses):
 
 @app.route("/leaderboard", methods=["GET"])
 async def getTopTen():
-    return r.zrange("leaderboard", 0, 9, withscores=True, desc=True),200
+    lb = r.zrange("leaderboard", 0, 9, withscores=True, desc=True)
+    lbdict = dict((i[0].decode("utf-8"),i[1]) for i in lb)
+    return lbdict,200
 
 
 # ---------------RESET LEADERBOARD DATABASES---------------
