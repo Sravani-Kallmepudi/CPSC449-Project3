@@ -10,11 +10,11 @@
 
 In this project, we are creating three replicas of the database which are named primary, secondary 1 and secondary 2. We are then configuring our game service such that the reads are distributed across the three replicas while writes continue to go to the primary database. We have created a new RESTful microservice to maintain a leaderboard for Wordle games.
 
-## Configuration files:
+# Configuration files:
 1. Procfile is a mechanism for declaring what commands are run by your application to start the app 
 2. Update the nginx.config from nginx_config/tutorial into default file present in /etc/nginx/sites-enabled
 
-## The following are the steps to run the project:
+# The following are the steps to run the project:
 1. Installing and configuring Nginx:
 ```bash
 sudo apt update
