@@ -6,6 +6,7 @@ import sqlite3
 import toml
 import random
 import uuid
+import itertools
 
 app = Quart(__name__)
 QuartSchema(app)
@@ -14,8 +15,20 @@ app.config.from_file(f"./etc/{__name__}.toml", toml.load)
 async def _get_db():
     db = getattr(g, "_sqlite_db", None)
     if db is None:
-        db = g._sqlite_db = databases.Database(app.config["DATABASES"]["URL"])
-        # db = g._sqlite_db = databases.Database('sqlite+aiosqlite:/wordle.db')
+        choose = itertools.cycle([1,2,3])
+        if next(choose) == 1:
+            db = g._sqlite_db = databases.Database(app.config["DATABASES"]["primary"])
+        elif next(choose) == 2:
+            db = g._sqlite_db = databases.Database(app.config["DATABASES"]["secondary_1"])
+        else:
+            db = g._sqlite_db = databases.Database(app.config["DATABASES"]["secondary_2"])
+        await db.connect()
+    return db
+    
+async def _get_primary_db():
+    db = getattr(g, "_sqlite_db", None)
+    if db is None:
+        db = g._sqlite_db = databases.Database(app.config["DATABASES"]["primary"])
         await db.connect()
     return db
 
@@ -87,8 +100,8 @@ def getGuessState(guess, secret):
     return data
 
 async def gameStateToDict(game):
-    db = await _get_db()
-    secretWord = await db.fetch_one("SELECT word FROM correct WHERE id=:id", values={"id": game[2]})
+    db_select = await _get_db()
+    secretWord = await db_select.fetch_one("SELECT word FROM correct WHERE id=:id", values={"id": game[2]})
     secretWord = secretWord[0]
 
     state = {"guessesLeft": game[3], "finished": True if game[4] == 1 else False, "gussedWords": []}
@@ -121,7 +134,8 @@ async def updateGameState(game, word, db, finished = 0):
 
 @app.route("/game", methods=["POST"])
 async def newGame():
-    db = await _get_db()
+    db_select = await _get_db()
+    db_insert = await _get_primary_db()
 
     auth = request.authorization
 
@@ -130,13 +144,13 @@ async def newGame():
 
     username = auth.username
 
-    words = await db.fetch_all("SELECT * FROM correct")
+    words = await db_select.fetch_all("SELECT * FROM correct")
     num = random.randrange(0, len(words), 1)
 
     gameId = str(uuid.uuid4())
     data = {"gameId": gameId, "wordId": words[num][0], "username": username}
 
-    await db.execute(
+    await db_insert.execute(
         """
         INSERT INTO game(id, wordId, username)
         VALUES(:gameId, :wordId, :username)
@@ -154,7 +168,7 @@ async def newGame():
 
 @app.route("/game/<string:gameId>", methods=["PATCH"])
 async def guess(gameId):
-    db = await _get_db()
+    db_select = await _get_db()
 
     auth = request.authorization
 
@@ -169,7 +183,7 @@ async def guess(gameId):
     if not(word):
         abort(400, "Please provide the guess word")
 
-    game = await db.fetch_one("SELECT * FROM game WHERE id=:id", values={"id": gameId})
+    game = await db_select.fetch_one("SELECT * FROM game WHERE id=:id", values={"id": gameId})
 
     # Check if game exists
     if not(game):
@@ -189,10 +203,10 @@ async def guess(gameId):
     wordIsValid = False
 
     # check if word is in correct table
-    correct = await db.fetch_one("SELECT word FROM correct WHERE word=:word", values={"word": word})
+    correct = await db_select.fetch_one("SELECT word FROM correct WHERE word=:word", values={"word": word})
 
     if not(correct):
-        valid = await db.fetch_one("SELECT word FROM valid WHERE word=:word", values={"word": word})
+        valid = await db_select.fetch_one("SELECT word FROM valid WHERE word=:word", values={"word": word})
         wordIsValid = valid is not None
 
     # invalid guess
@@ -200,17 +214,17 @@ async def guess(gameId):
         abort(400, "Guess word is invalid")
 
     # Not correct but valid
-    secretWord = await db.fetch_one("SELECT word FROM correct WHERE id=:id", values={"id": game[2]})
+    secretWord = await db_select.fetch_one("SELECT word FROM correct WHERE id=:id", values={"id": game[2]})
     secretWord = secretWord[0]
 
     # guessed correctly
     if word == secretWord:
-        await updateGameState(game, word, db, 1)
+        await updateGameState(game, word, db_select, 1)
 
         return {"word": {"input": word, "valid": True, "correct": True}, 
         "numGuesses": game[3] - 1}
 
-    await updateGameState(game, word, db, 0)
+    await updateGameState(game, word, db_select, 0)
 
     data = getGuessState(word, secretWord)
 
@@ -222,7 +236,7 @@ async def guess(gameId):
 
 @app.route("/my-games", methods=["GET"])
 async def myGames():
-    db = await _get_db()
+    db_select = await _get_db()
 
     auth = request.authorization
 
@@ -231,7 +245,7 @@ async def myGames():
 
     username = auth.username
 
-    games = await db.fetch_all("SELECT * FROM game WHERE username=:username", values={"username": username})
+    games = await db_select.fetch_all("SELECT * FROM game WHERE username=:username", values={"username": username})
 
     gamesList = list(map(dict, games))
     res = []
@@ -249,9 +263,9 @@ async def myGames():
 
 @app.route("/game/<string:gameId>", methods=["GET"])
 async def getGame(gameId):
-    db = await _get_db()
+    db_select = await _get_db()
 
-    game = await db.fetch_one("SELECT * FROM game WHERE id=:id", values={"id": gameId})
+    game = await db_select.fetch_one("SELECT * FROM game WHERE id=:id", values={"id": gameId})
 
     if not(game):
         return {"message": "No game found with this id"}, 404
