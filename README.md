@@ -20,25 +20,22 @@ In this project, we are creating three replicas of the database which are named 
 sudo apt update
 sudo apt install --yes nginx-extras
 ```
-2. Clone the github repository:
-```bash
-git clone https://github.com/Sravani-Kallmepudi/CPSC449-Project3.git
-```
-3. Then cd into the CPSC449-Project3 folder and run the following commands:
+2. Then cd into the CPSC449-Project3 folder and run the following commands:
 ```bash
 cd bin
-chmod u+x lifefs
+chmod u+x litefs
 sh init_dir.sh
 cd ..
 ```
-4. Start the services
+3. Start the services
 ```bash
 foreman start 
 ```
-5. Run both the init scripts to populate the database and automatically connect the api to the database. 
+4. Run both the init scripts to populate the database and automatically connect the api to the database. 
 ```bash
-./bin/init_auth.sh
-./bin/init_game.sh
+open a new terminal at the project folder and enter:
+sh ./bin/init_auth.sh
+sh ./bin/init_game.sh
 ```
 Now the API can be run using Postman(the method which we followed) or using curl or httpie.
 
@@ -51,6 +48,7 @@ http POST http://tuffix-vm/register/ username=Rain password=rain@123
 For authenticating the user:@app.route("/auth", methods=["GET"])
 ```bash
 Ex: On postman with Basic-Auth: http://tuffix-vm/auth
+note: this is no longer available externally, but other endpoints will make use of it
 ```
 ## ENDPOINT 3: 
 For creating a new game for an authenticated user:@app.route("/game/", methods=["POST"])
@@ -65,7 +63,7 @@ Ex: On postman with Basic-Auth: http://tuffix-vm/game/:gameId
 ## ENDPOINT 5:
 List all the games for the authenticated user:@app.route("/my-games", methods=["GET"])
 ```bash
-Ex: On postman with Basic-Auth: http://tuffix-vm/my-games  
+Ex: On postman with Basic-Auth: http://tuffix-vm/my-games
 ```
 ## ENDPOINT 6:
 Guessing a word: @app.route("/game/:gameId", methods=["PATCH"])
