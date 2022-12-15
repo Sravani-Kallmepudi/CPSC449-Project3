@@ -14881,8 +14881,14 @@ CREATE TABLE "game"(
 	guess3 VARCHAR(5) DEFAULT "", 
 	guess4 VARCHAR(5) DEFAULT "", 
 	guess5 VARCHAR(5) DEFAULT "", 
-	guess6 VARCHAR(5) DEFAULT "", 
+	guess6 VARCHAR(5) DEFAULT "",
     FOREIGN KEY(wordId) REFERENCES correct(id)
+);
+
+DROP TABLE IF EXISTS "listen";
+CREATE TABLE "listen"(
+	username TEXT PRIMARY KEY,
+	callbackURL URL DEFAULT null
 );
 
 CREATE INDEX correct_idx_00017a64 ON correct(word);

@@ -7,6 +7,7 @@ import toml
 import random
 import uuid
 import itertools
+import httpx
 
 app = Quart(__name__)
 QuartSchema(app)
@@ -194,6 +195,10 @@ async def guess(gameId):
 
     # Check if game is finished
     if game[4] == 1:
+        callbackURL = await db_select.fetch_one("SELECT callbackURL FROM listen WHERE username=:username", values={"username": username})
+        if callbackURL != "null":
+            httpx.post('http://127.0.0.1:5400/reportgame', json={"username":username, "result":0, "guesses": game[3] - 1})
+
         abort(400, "This game has already ended")
 
     # Check if word is valid
@@ -220,12 +225,15 @@ async def guess(gameId):
     # guessed correctly
     if word == secretWord:
         await updateGameState(game, word, db_select, 1)
+        callbackURL = await db_select.fetch_one("SELECT callbackURL FROM listen WHERE username=:username", values={"username": username})
+        if callbackURL != "null":
+            httpx.post('http://127.0.0.1:5400/reportgame', json={"username":username, "result":1, "guesses": game[3] - 1})
 
         return {"word": {"input": word, "valid": True, "correct": True}, 
         "numGuesses": game[3] - 1}
 
     await updateGameState(game, word, db_select, 0)
-
+    
     data = getGuessState(word, secretWord)
 
     return {"word": {"input": word, "valid": True, "correct": False}, 
@@ -271,6 +279,34 @@ async def getGame(gameId):
         return {"message": "No game found with this id"}, 404
     
     return await gameStateToDict(game)
+
+# ---------------GET GAME SCORE---------------
+@app.route("/game/updates", methods=["POST"])
+async def getScore():
+    #save this URL in the database
+    db_select = await _get_db()
+    db_insert = await _get_primary_db()
+    
+    body = await request.get_json()
+    URL = body.get("URL")
+    username = body.get("username")
+    user = await db_select.fetch_one("SELECT username FROM game")
+    if username not in user:
+        abort(401, "Please provide correct username")
+    
+
+    data = {"username": username, "URL": URL}
+
+    await db_insert.execute(
+        """
+        INSERT INTO listen(username, callbackURL)
+        VALUES(:username, :URL)
+        """,
+        data)
+    return {"message": "leaderboard reset"},200
+    
+
+
 
 # game
 # 0 = id

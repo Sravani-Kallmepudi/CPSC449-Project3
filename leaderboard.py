@@ -3,6 +3,7 @@ from quart_schema import validate_request, RequestSchemaValidationError, QuartSc
 import toml
 import redis
 import json
+import httpx
 
 app = Quart(__name__)
 QuartSchema(app)
@@ -32,7 +33,7 @@ async def addScore():
     average = total/count
 
     r.zadd("leaderboard", {username:average})
-    return {"message": "game successfully reported", "updated_average": average},200
+    return {"score": score, "updated_average": average},200
 
 
 # ---------------GET LEADERBOARD TOP 10---------------
@@ -50,3 +51,33 @@ async def getTopTen():
 async def clearLeaderboard():
     r.flushall()
     return {"message": "leaderboard reset"},200
+ 
+    
+# ---------------REGISTER TO GET SCORE UPDATES---------------
+
+@app.route("/scoreupdates", methods=["POST"])
+async def getScoreUpdate():
+    body = await request.get_json()
+    URL = body.get("URL")
+
+    auth = request.authorization
+    if not(auth):
+        abort(401, "Please provide the username")
+    username = auth.username
+    httpx.post('http://127.0.0.1:5100/game/updates', json={"URL":URL, "username":username})
+
+    # while registering send callback URL
+    #You can construct the callback URL from the PORT environment variable and socket.getfqdn().
+    # send http req to game service using httpx and send URL
+    
+    return {"message": "registered for score updates successfully!!"}, 200
+
+#@app.route("/scoreupdates/reply", methods=["POST"])
+#async def scoreResponse():
+ #   body = await request.get_data()
+  #  data = body.get("data")
+   
+   # if data == 0:
+    #    return {"game update": "Lost"}
+    #return {"game update": "Win"}
+
